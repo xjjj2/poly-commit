@@ -22,7 +22,7 @@ pub struct UniversalParams<E: Pairing> {
     /// generator for G2
     pub h: E::G2Affine,
     /// g^randomness
-    pub g_mask: Vec<E::G1Affine>,
+    pub h_mask: Vec<E::G2Affine>,
 }
 
 /// Public Parameter used by prover
@@ -50,7 +50,7 @@ pub struct VerifierKey<E: Pairing> {
     /// generator of G2
     pub h: E::G2Affine,
     /// g^t1, g^t2, ...
-    pub g_mask_random: Vec<E::G1Affine>,
+    pub h_mask_random: Vec<E::G2Affine>,
 }
 
 #[derive(CanonicalSerialize, CanonicalDeserialize, Clone, Debug)]
@@ -66,5 +66,5 @@ pub struct Commitment<E: Pairing> {
 /// proof of opening
 pub struct Proof<E: Pairing> {
     /// Evaluation of quotients
-    pub proofs: Vec<E::G2Affine>,
+    pub proofs: Vec<E::G1Affine>,
 }

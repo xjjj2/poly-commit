@@ -89,17 +89,17 @@ impl<E: Pairing> MultilinearPC<E> {
 
         // uncomment to measure the time for calculating vp
         // let vp_generation_timer = start_timer!(|| "VP generation");
-        let g_mask = {
+        let h_mask = {
             let window_size = FixedBase::get_mul_window_size(num_vars);
-            let g_table = FixedBase::get_window_table(scalar_bits, window_size, g.into_group());
-            E::G1::normalize_batch(&FixedBase::msm(scalar_bits, window_size, &g_table, &t))
+            let h_table = FixedBase::get_window_table(scalar_bits, window_size, h.into_group());
+            E::G2::normalize_batch(&FixedBase::msm(scalar_bits, window_size, &h_table, &t))
         };
         // end_timer!(vp_generation_timer);
 
         UniversalParams {
             num_vars,
             g,
-            g_mask,
+            h_mask,
             h,
             powers_of_g,
             powers_of_h,
@@ -126,7 +126,7 @@ impl<E: Pairing> MultilinearPC<E> {
             nv: supported_num_vars,
             g: params.g,
             h: params.h,
-            g_mask_random: (&params.g_mask[to_reduce..]).to_vec(),
+            h_mask_random: (&params.h_mask[to_reduce..]).to_vec(),
         };
         (ck, vk)
     }
@@ -180,9 +180,9 @@ impl<E: Pairing> MultilinearPC<E> {
                 .map(|x| q[k][x >> 1].into_bigint()) // fine
                 .collect();
 
-            let pi_h =
-                <E::G2 as VariableBaseMSM>::msm_bigint(&ck.powers_of_h[i], &scalars).into_affine(); // no need to move outside and partition
-            proofs.push(pi_h);
+            let pi_g =
+                <E::G1 as VariableBaseMSM>::msm_bigint(&ck.powers_of_g[i], &scalars).into_affine(); // no need to move outside and partition
+            proofs.push(pi_g);
         }
 
         Proof { proofs }
@@ -202,22 +202,22 @@ impl<E: Pairing> MultilinearPC<E> {
         let scalar_size = E::ScalarField::MODULUS_BIT_SIZE as usize;
         let window_size = FixedBase::get_mul_window_size(vk.nv);
 
-        let g_table = FixedBase::get_window_table(scalar_size, window_size, vk.g.into_group());
-        let g_mul: Vec<E::G1> = FixedBase::msm(scalar_size, window_size, &g_table, point);
+        let h_table = FixedBase::get_window_table(scalar_size, window_size, vk.h.into_group());
+        let h_mul: Vec<E::G2> = FixedBase::msm(scalar_size, window_size, &h_table, point);
 
-        let pairing_lefts: Vec<_> = (0..vk.nv)
-            .map(|i| vk.g_mask_random[i].into_group() - &g_mul[i])
+        let pairing_rights: Vec<_> = (0..vk.nv)
+            .map(|i| vk.h_mask_random[i].into_group() - &h_mul[i])
             .collect();
-        let pairing_lefts: Vec<E::G1Affine> = E::G1::normalize_batch(&pairing_lefts);
-        let pairing_lefts: Vec<E::G1Prepared> = pairing_lefts
+        let pairing_rights: Vec<E::G2Affine> = E::G2::normalize_batch(&pairing_rights);
+        let pairing_rights: Vec<E::G2Prepared> = pairing_rights
             .into_iter()
-            .map(|x| E::G1Prepared::from(x))
+            .map(|x| E::G2Prepared::from(x))
             .collect();
 
-        let pairing_rights: Vec<E::G2Prepared> = proof
+        let pairing_lefts: Vec<E::G1Prepared> = proof
             .proofs
             .iter()
-            .map(|x| E::G2Prepared::from(*x))
+            .map(|x| E::G1Prepared::from(*x))
             .collect();
 
         let right = E::multi_pairing(pairing_lefts, pairing_rights);
